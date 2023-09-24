@@ -263,7 +263,7 @@ class Word2Vec(utils.SaveLoad):
 
         Parameters
         ----------
-        $$ sentences_freq: dict of (sentence[str]: frequency[int])
+        $$ sentences_freq: list of tuple (sentence[list of str]: frequency[int])
         sentences : iterable of iterables, optional
             The `sentences` iterable can be simply a list of lists of tokens, but for larger corpora,
             consider an iterable that streams the sentences directly from disk/network.
@@ -432,8 +432,8 @@ class Word2Vec(utils.SaveLoad):
         # $$
         if corpus_iterable_freq is not None:
             # simple _check_corpus_sanity process for _freq type.
-            if not isinstance(corpus_iterable_freq, dict):
-                raise TypeError("corpus_iterable_freq must be a dict type")
+            if not isinstance(corpus_iterable_freq, list):
+                raise TypeError("corpus_iterable_freq must be a list type")
             # build_vocab for _freq type ## this is not build_vocab_from_freq!!
             self.build_vocab_freq(corpus_iterable_freq=corpus_iterable_freq, trim_rule=trim_rule)
             # train for _freq type
@@ -472,13 +472,11 @@ class Word2Vec(utils.SaveLoad):
         self, corpus_iterble_freq=None, update=False, progress_per=10000,
         keep_raw_vocab=False, trim_rule=None, **kwargs,
     ):
-        # _scan_vocab for _freq type
-          #sentences_freq = corpus_iterble_freq
         sentence_no = 0 # $$
         total_words = 0
         min_reduce = 1
         vocab = defaultdict(int)
-        for sentence_no, (sentence, freq) in enumerate(corpus_iterble_freq.items()):
+        for sentence_no, (sentence, freq) in enumerate(corpus_iterble_freq):
             
             for f in freq:
                 sentence_no += 1
@@ -1045,7 +1043,7 @@ class Word2Vec(utils.SaveLoad):
 
         Parameters
         ----------
-        $$ corpus_iterable_freq: dict of (iterable, int)
+        $$ corpus_iterable_freq: list of (iterable, int)
         corpus_iterable : iterable of list of str
             The ``corpus_iterable`` can be simply a list of lists of tokens, but for larger corpora,
             consider an iterable that streams the sentences directly from disk/network, to limit RAM usage.
@@ -1247,7 +1245,7 @@ class Word2Vec(utils.SaveLoad):
 
         Parameters
         ----------
-        $$ data_iterator_freq: dict of (iterable: int)
+        $$ data_iterator_freq: list of (iterable, int)
         data_iterator : iterable of list of objects
             The input dataset. This will be split in chunks and these chunks will be pushed to the queue.
         job_queue : Queue of (list of object, float)
@@ -1271,7 +1269,7 @@ class Word2Vec(utils.SaveLoad):
         job_no = 0
 
         # $$
-        for (data, freq) in data_iterator_freq.items():
+        for (data, freq) in data_iterator_freq:
             data_length = self._raw_word_count([data])
 
             for f in freq:
