@@ -240,7 +240,9 @@ except ImportError:
 
 class Word2Vec(utils.SaveLoad):
     def __init__(
-            self, sentences=None, corpus_file=None, vector_size=100, alpha=0.025, window=5, min_count=5,
+            self, 
+            sentences_freq = None,
+            sentences=None, corpus_file=None, vector_size=100, alpha=0.025, window=5, min_count=5,
             max_vocab_size=None, sample=1e-3, seed=1, workers=3, min_alpha=0.0001,
             sg=0, hs=0, negative=5, ns_exponent=0.75, cbow_mean=1, hashfxn=hash, epochs=5, null_word=0,
             trim_rule=None, sorted_vocab=1, batch_words=MAX_WORDS_IN_BATCH, compute_loss=False, callbacks=(),
@@ -261,6 +263,7 @@ class Word2Vec(utils.SaveLoad):
 
         Parameters
         ----------
+        $$ sentences_freq: dict of (sentence[str]: frequency[int])
         sentences : iterable of iterables, optional
             The `sentences` iterable can be simply a list of lists of tokens, but for larger corpora,
             consider an iterable that streams the sentences directly from disk/network.
@@ -373,6 +376,8 @@ class Word2Vec(utils.SaveLoad):
             directly to query those embeddings in various ways. See the module level docstring for examples.
 
         """
+        # $$
+        corpus_iterable_freq = sentences_freq
         corpus_iterable = sentences
 
         self.vector_size = int(vector_size)
@@ -424,7 +429,23 @@ class Word2Vec(utils.SaveLoad):
 
         self.load = call_on_class_only
 
-        if corpus_iterable is not None or corpus_file is not None:
+        # $$
+        if corpus_iterable_freq is not None:
+            # simple _check_corpus_sanity process for _freq type.
+            if not isinstance(corpus_iterable_freq, dict):
+                raise TypeError("corpus_iterable_freq must be a dict type")
+            # build_vocab for _freq type ## this is not build_vocab_from_freq!!
+            self.build_vocab_freq(corpus_iterable_freq=corpus_iterable_freq, trim_rule=trim_rule)
+            # train for _freq type
+            self.train(
+                corpus_iterable_freq=corpus_iterable_freq,
+                total_examples=self.corpus_count,
+                total_words=self.corpus_total_words, epochs=self.epochs, start_alpha=self.alpha,
+                end_alpha=self.min_alpha, compute_loss=self.compute_loss, callbacks=callbacks
+            )
+            
+
+        elif corpus_iterable is not None or corpus_file is not None:
             self._check_corpus_sanity(corpus_iterable=corpus_iterable, corpus_file=corpus_file, passes=(epochs + 1))
             self.build_vocab(corpus_iterable=corpus_iterable, corpus_file=corpus_file, trim_rule=trim_rule)
             self.train(
@@ -445,6 +466,41 @@ class Word2Vec(utils.SaveLoad):
                     "be ignored.")
 
         self.add_lifecycle_event("created", params=str(self))
+
+    # $$ ADDED <- build_vocab
+    def build_vocab_freq(
+        self, corpus_iterble_freq=None, update=False, progress_per=10000,
+        keep_raw_vocab=False, trim_rule=None, **kwargs,
+    ):
+        # _scan_vocab for _freq type
+          #sentences_freq = corpus_iterble_freq
+        sentence_no = 0 # $$
+        total_words = 0
+        min_reduce = 1
+        vocab = defaultdict(int)
+        for sentence_no, (sentence, freq) in enumerate(corpus_iterble_freq.items()):
+            
+            for f in freq:
+                sentence_no += 1
+
+                for word in sentence:
+                    vocab[word] += 1
+                total_words += len(sentence)
+
+                if self.max_vocab_size and len(vocab) > self.max_vocab_size:
+                  utils.prune_vocab(vocab, min_reduce, trim_rule=trim_rule)
+                  min_reduce += 1
+
+        corpus_count = sentence_no # $$
+        self.raw_vocab = vocab
+
+        self.corpus_count = corpus_count
+        self.corpus_total_words = total_words
+        report_values = self.prepare_vocab(update=update, keep_raw_vocab=keep_raw_vocab, trim_rule=trim_rule, **kwargs)
+        report_values['memory'] = self.estimate_memory(vocab_size=report_values['num_retained_words'])
+        self.prepare_weights(update=update)
+        self.add_lifecycle_event("build_vocab", update=update, trim_rule=str(trim_rule))
+
 
     def build_vocab(
             self, corpus_iterable=None, corpus_file=None, update=False, progress_per=10000,
@@ -497,6 +553,7 @@ class Word2Vec(utils.SaveLoad):
         self.prepare_weights(update=update)
         self.add_lifecycle_event("build_vocab", update=update, trim_rule=str(trim_rule))
 
+    ## $$
     def build_vocab_from_freq(
             self, word_freq, keep_raw_vocab=False, corpus_count=None, trim_rule=None, update=False,
         ):
@@ -961,8 +1018,11 @@ class Word2Vec(utils.SaveLoad):
         """Clear any cached values that training may have invalidated."""
         self.wv.norms = None
 
+    # $$ MODIFIED to handle _freq type
     def train(
-            self, corpus_iterable=None, corpus_file=None, total_examples=None, total_words=None,
+            self, 
+            corpus_iterable_freq=None,
+            corpus_iterable=None, corpus_file=None, total_examples=None, total_words=None,
             epochs=None, start_alpha=None, end_alpha=None, word_count=0,
             queue_factor=2, report_delay=1.0, compute_loss=False, callbacks=(),
             **kwargs,
@@ -985,6 +1045,7 @@ class Word2Vec(utils.SaveLoad):
 
         Parameters
         ----------
+        $$ corpus_iterable_freq: dict of (iterable, int)
         corpus_iterable : iterable of list of str
             The ``corpus_iterable`` can be simply a list of lists of tokens, but for larger corpora,
             consider an iterable that streams the sentences directly from disk/network, to limit RAM usage.
@@ -1043,7 +1104,8 @@ class Word2Vec(utils.SaveLoad):
         self.epochs = epochs
 
         self._check_training_sanity(epochs=epochs, total_examples=total_examples, total_words=total_words)
-        self._check_corpus_sanity(corpus_iterable=corpus_iterable, corpus_file=corpus_file, passes=epochs)
+        if not corpus_iterable_freq:
+          self._check_corpus_sanity(corpus_iterable=corpus_iterable, corpus_file=corpus_file, passes=epochs)
 
         self.add_lifecycle_event(
             "train",
@@ -1068,6 +1130,13 @@ class Word2Vec(utils.SaveLoad):
         for cur_epoch in range(self.epochs):
             for callback in callbacks:
                 callback.on_epoch_begin(self)
+
+            # $$
+            if corpus_iterable_freq is not None:
+                trained_word_count_epoch, raw_word_count_epoch, job_tally_epoch = self._train_epoch_freq(
+                    corpus_iterable_freq, cur_epoch=cur_epoch, total_examples=total_examples,
+                    total_words=total_words, queue_factor=queue_factor, report_delay=report_delay,
+                    callbacks=callbacks, **kwargs)
 
             if corpus_iterable is not None:
                 trained_word_count_epoch, raw_word_count_epoch, job_tally_epoch = self._train_epoch(
@@ -1169,6 +1238,84 @@ class Word2Vec(utils.SaveLoad):
             jobs_processed += 1
         logger.debug("worker exiting, processed %i jobs", jobs_processed)
 
+    # $$ ADDED <- _job_producer
+    def _job_producer_freq(self, data_iterator_freq, data_iterator, job_queue, cur_epoch=0, total_examples=None, total_words=None):
+        """Fill the jobs queue using the data found in the input stream.
+
+        Each job is represented by a tuple where the first element is the corpus chunk to be processed and
+        the second is a dictionary of parameters.
+
+        Parameters
+        ----------
+        $$ data_iterator_freq: dict of (iterable: int)
+        data_iterator : iterable of list of objects
+            The input dataset. This will be split in chunks and these chunks will be pushed to the queue.
+        job_queue : Queue of (list of object, float)
+            A queue of jobs still to be processed. The worker will take up jobs from this queue.
+            Each job is represented by a tuple where the first element is the corpus chunk to be processed and
+            the second is the floating-point learning rate.
+        cur_epoch : int, optional
+            The current training epoch, needed to compute the training parameters for each job.
+            For example in many implementations the learning rate would be dropping with the number of epochs.
+        total_examples : int, optional
+            Count of objects in the `data_iterator`. In the usual case this would correspond to the number of sentences
+            in a corpus. Used to log progress.
+        total_words : int, optional
+            Count of total objects in `data_iterator`. In the usual case this would correspond to the number of raw
+            words in a corpus. Used to log progress.
+
+        """
+        job_batch, batch_size = [], 0
+        pushed_words, pushed_examples = 0, 0
+        next_alpha = self._get_next_alpha(0.0, cur_epoch)
+        job_no = 0
+
+        # $$
+        for (data, freq) in data_iterator_freq.items():
+            data_length = self._raw_word_count([data])
+
+            for f in freq:
+                # can we fit this sentence into the existing job batch?
+                if batch_size + data_length <= self.batch_words:
+                    # yes => add it to the current job
+                    job_batch.append(data)
+                    batch_size += data_length
+                else:
+                    job_no += 1
+                    job_queue.put((job_batch, next_alpha))
+
+                    # update the learning rate for the next job
+                    if total_examples:
+                        # examples-based decay
+                        pushed_examples += len(job_batch)
+                        epoch_progress = 1.0 * pushed_examples / total_examples
+                    else:
+                        # words-based decay
+                        pushed_words += self._raw_word_count(job_batch)
+                        epoch_progress = 1.0 * pushed_words / total_words
+                    next_alpha = self._get_next_alpha(epoch_progress, cur_epoch)
+
+                    # add the sentence that didn't fit as the first item of a new job
+                    job_batch, batch_size = [data], data_length
+
+        # add the last job too (may be significantly smaller than batch_words)
+        if job_batch:
+            job_no += 1
+            job_queue.put((job_batch, next_alpha))
+
+        if job_no == 0 and self.train_count == 0:
+            logger.warning(
+                "train() called with an empty iterator (if not intended, "
+                "be sure to provide a corpus that offers restartable iteration = an iterable)."
+            )
+
+        # give the workers heads up that they can finish -- no more work!
+        for _ in range(self.workers):
+            job_queue.put(None)
+        logger.debug("job loop exiting, total %i jobs", job_no)
+
+
+    # $$ -> _job_producer_from_freq
     def _job_producer(self, data_iterator, job_queue, cur_epoch=0, total_examples=None, total_words=None):
         """Fill the jobs queue using the data found in the input stream.
 
@@ -1376,6 +1523,38 @@ class Word2Vec(utils.SaveLoad):
         trained_word_count, raw_word_count, job_tally = self._log_epoch_progress(
             progress_queue=progress_queue, job_queue=None, cur_epoch=cur_epoch,
             total_examples=total_examples, total_words=total_words, is_corpus_file_mode=True)
+
+        return trained_word_count, raw_word_count, job_tally
+    
+    # $$ ADDED
+    def _train_epoch_freq(
+        self, data_iterable_freq, cur_epoch=0, total_examples=None, total_words=None,
+          queue_factor=2, report_delay=1.0, callbacks=(),
+        ):
+
+        job_queue = Queue(maxsize=queue_factor * self.workers)
+        progress_queue = Queue(maxsize=(queue_factor + 1) * self.workers)
+
+        workers = [
+            threading.Thread(
+                target=self._worker_loop,
+                args=(job_queue, progress_queue,))
+            for _ in range(self.workers)
+        ]
+
+        workers.append(threading.Thread(
+            target=self._job_producer_freq,
+            args=(data_iterable_freq, job_queue),
+            kwargs={'cur_epoch': cur_epoch, 'total_examples': total_examples, 'total_words': total_words}))
+
+        for thread in workers:
+            thread.daemon = True  # make interrupting the process with ctrl+c easier
+            thread.start()
+
+        trained_word_count, raw_word_count, job_tally = self._log_epoch_progress(
+            progress_queue, job_queue, cur_epoch=cur_epoch, total_examples=total_examples,
+            total_words=total_words, report_delay=report_delay, is_corpus_file_mode=False,
+        )
 
         return trained_word_count, raw_word_count, job_tally
 
