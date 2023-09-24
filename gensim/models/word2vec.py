@@ -1136,7 +1136,7 @@ class Word2Vec(utils.SaveLoad):
                     total_words=total_words, queue_factor=queue_factor, report_delay=report_delay,
                     callbacks=callbacks, **kwargs)
 
-            if corpus_iterable is not None:
+            elif corpus_iterable is not None:
                 trained_word_count_epoch, raw_word_count_epoch, job_tally_epoch = self._train_epoch(
                     corpus_iterable, cur_epoch=cur_epoch, total_examples=total_examples,
                     total_words=total_words, queue_factor=queue_factor, report_delay=report_delay,
