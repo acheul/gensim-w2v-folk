@@ -1237,7 +1237,7 @@ class Word2Vec(utils.SaveLoad):
         logger.debug("worker exiting, processed %i jobs", jobs_processed)
 
     # $$ ADDED <- _job_producer
-    def _job_producer_freq(self, data_iterator_freq, data_iterator, job_queue, cur_epoch=0, total_examples=None, total_words=None):
+    def _job_producer_freq(self, data_iterator_freq, job_queue, cur_epoch=0, total_examples=None, total_words=None):
         """Fill the jobs queue using the data found in the input stream.
 
         Each job is represented by a tuple where the first element is the corpus chunk to be processed and
