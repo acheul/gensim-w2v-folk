@@ -478,7 +478,7 @@ class Word2Vec(utils.SaveLoad):
         vocab = defaultdict(int)
         for sentence_no, (sentence, freq) in enumerate(corpus_iterable_freq):
             
-            for f in freq:
+            for f in range(freq):
                 sentence_no += 1
 
                 for word in sentence:
@@ -1272,7 +1272,7 @@ class Word2Vec(utils.SaveLoad):
         for (data, freq) in data_iterator_freq:
             data_length = self._raw_word_count([data])
 
-            for f in freq:
+            for f in range(freq):
                 # can we fit this sentence into the existing job batch?
                 if batch_size + data_length <= self.batch_words:
                     # yes => add it to the current job
