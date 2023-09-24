@@ -469,14 +469,14 @@ class Word2Vec(utils.SaveLoad):
 
     # $$ ADDED <- build_vocab
     def build_vocab_freq(
-        self, corpus_iterble_freq=None, update=False, progress_per=10000,
+        self, corpus_iterable_freq=None, update=False, progress_per=10000,
         keep_raw_vocab=False, trim_rule=None, **kwargs,
     ):
         sentence_no = 0 # $$
         total_words = 0
         min_reduce = 1
         vocab = defaultdict(int)
-        for sentence_no, (sentence, freq) in enumerate(corpus_iterble_freq):
+        for sentence_no, (sentence, freq) in enumerate(corpus_iterable_freq):
             
             for f in freq:
                 sentence_no += 1
