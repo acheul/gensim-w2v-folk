@@ -432,8 +432,8 @@ class Word2Vec(utils.SaveLoad):
         # $$
         if corpus_iterable_freq is not None:
             # simple _check_corpus_sanity process for _freq type.
-            if not isinstance(corpus_iterable_freq, list):
-                raise TypeError("corpus_iterable_freq must be a list type")
+            ## if not isinstance(corpus_iterable_freq, list):
+            ##     raise TypeError("corpus_iterable_freq must be a list type")
             # build_vocab for _freq type ## this is not build_vocab_from_freq!!
             self.build_vocab_freq(corpus_iterable_freq=corpus_iterable_freq, trim_rule=trim_rule)
             # train for _freq type
