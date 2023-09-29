@@ -241,7 +241,7 @@ except ImportError:
 class Word2Vec(utils.SaveLoad):
     def __init__(
             self, 
-            sentences_freq = None,
+            sentences_freq=None,
             sentences=None, corpus_file=None, vector_size=100, alpha=0.025, window=5, min_count=5,
             max_vocab_size=None, sample=1e-3, seed=1, workers=3, min_alpha=0.0001,
             sg=0, hs=0, negative=5, ns_exponent=0.75, cbow_mean=1, hashfxn=hash, epochs=5, null_word=0,
