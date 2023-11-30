@@ -334,7 +334,7 @@ install_requires = [
 ]
 
 setup(
-    name='gensim', # $$
+    name='gensim_freq', # $$
     version='4.3.2.dev1',
     description='Python framework for fast Vector Space Modelling',
     long_description=LONG_DESCRIPTION,
@@ -346,11 +346,11 @@ setup(
     author=u'Radim Rehurek',
     author_email='me@radimrehurek.com',
 
-    url='https://radimrehurek.com/gensim/',
+    url='https://github.com/acheul/gensim-w2v-folk',
     project_urls={
-        'Source': 'https://github.com/RaRe-Technologies/gensim',
+        'Source': 'https://github.com/acheul/gensim-w2v-folk',
     },
-    download_url='https://pypi.org/project/gensim/',
+    download_url='https://github.com/acheul/gensim-w2v-folk',
 
     license='LGPL-2.1-only',
 
